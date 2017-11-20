@@ -1,0 +1,19 @@
+{
+  "name": "swaggle-web-scraper",
+  "version": "1.0.0",
+  "description": "Headless web scraper for SnobSwap, Grailed and TheRealReal",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emes001/swaggle-web-scraper.git"
+  },
+  "author": "Stamatios Stamoulas <stamatios.stamoulas@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/emes001/swaggle-web-scraper/issues"
+  },
+  "homepage": "https://github.com/emes001/swaggle-web-scraper#readme"
+}
