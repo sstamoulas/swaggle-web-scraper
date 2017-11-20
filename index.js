@@ -1,12 +1,14 @@
-var express = require('express');
+//var express = require('express');
 var fs = require('fs');
-var app     = express();
+//var app     = express();
 var cheerio = require('cheerio');
 var phantom = require("phantom");
 var Horseman = require("node-horseman");
+var Promise = require("bluebird");
 var _ph, _page, _outObj;
-var result = [];
+var results = [];
 var promises = [];
+var grandPromise;
 
 var color,
     condition,
@@ -14,9 +16,9 @@ var color,
     id,
     price,
     productBrand,
-    productCategory, 
+    productCategory,
     productColor,
-    productPhotos, 
+    productPhotos,
     productSize,
     retail,
     savings,
@@ -28,16 +30,21 @@ var color,
 //new
 //https://snobswap.com/shop/search?q=men#?p=0&pp=200&i=Items&wholesale_flag=0:0&sold_flag=0:0
 
+console.log("Start the web scrape!")
+
 phantom.create().then(ph => {
     _ph = ph;
     return _ph.createPage();
 }).then(page => {
+	var requestUrl = 'https://snobswap.com/shop/search?q=men#?p=0&pp=200&i=Items&wholesale_flag=0:0&sold_flag=0:0';
     _page = page;
-    return _page.open('https://snobswap.com/shop/search?q=men#?p=0&pp=200&i=Items&wholesale_flag=0:0&sold_flag=0:0');
+	console.log("Open up request to", requestUrl);
+    return _page.open(requestUrl);
 }).then(status => {
-    console.log(status);
+    console.log("Status: ", status);
     return _page.property('content')
 }).then(content => {
+	console.log("Loading content for parsing...");
     var $ = cheerio.load(content);
 
     $('.ng-scope .item').each(function(){
@@ -59,10 +66,10 @@ phantom.create().then(ph => {
 
         if(productCategory.indexOf('\"men\"') > -1) {
 
-            result.push(
+            results.push(
                 {
-                    productPhotos: productPhotos, 
-                    productBrand: productBrand, 
+                    productPhotos: productPhotos,
+                    productBrand: productBrand,
                     productCategory: productCategory,
                     description: description,
                     price: price,
@@ -78,25 +85,40 @@ phantom.create().then(ph => {
 
     });
 
-    return result;
+    return results;
 }).then(function(){
-    result.forEach(function(item){
-        promises.push(doStuff(item));
+	var maxCount = 5;
+	var index = 0;
+	console.log("Begin extracting additional details for " + results.length + " item(s).")
+	grandPromise = new Promise(function(resolve, reject) { resolve(true) });
+
+    results.forEach(function(item){
+		var delayedPromise = function() {
+			var delayInMS = 0; // delay in milliseconds
+			return Promise.delay(delayInMS).then(function() {
+				var requestIndex = results.indexOf(item) + 1;
+
+				console.log(requestIndex + "/" + results.length + " item request URL", item.link, "Timestamp", new Date(), "Extra delay (ms)", delayInMS);
+				return extractDetailsFromItemPage(item);
+			});
+		}
+		grandPromise = grandPromise.then(delayedPromise);
     });
 }).then(function(){
     _page.close();
-    _ph.exit();
 
+	grandPromise.then(function(){
+		var fileName = 'snobswap.json';
+		console.log("All requests complete. Writing out data to file...", fileName);
 
-    Promise.all(promises)
-    .then(function(){
-        fs.writeFile('snobswap.json', JSON.stringify(result, null, 4), function(err){
-            console.log('File successfully written! - Check your project directory for the snobswap.json file');
+        fs.writeFile(fileName, JSON.stringify(results, null, 4), function(err){
+            console.log('File successfully written! - Check your project directory for the file', fileName);
+			_ph.exit();
         })
     });
 });
 
-function doStuff(item){ 
+function extractDetailsFromItemPage(item){
     var horseman = new Horseman();
 
     return new Promise(function(resolve, reject) {
@@ -110,9 +132,12 @@ function doStuff(item){
                 item.condition = content.substring(getPosition(content, 'Condition: ', 1) + 'Condition: '.length, getPosition(content, ' <span class="', 2));
                 resolve(item);
            })
-           .catch(reject)
-           .close();   
-    });  
+           .catch(function(e) {
+			   console.log("Got an error in horseman", e);
+			   reject(e);
+		   })
+           .close();
+    });
 }
 
 /*
@@ -172,27 +197,27 @@ page.open('https://www.grailed.com/feed/QsYjmINd3Q?cursor=ApwFZmlsdGVycz0oc3RyYX
 var content = page.property('content')
 var $ = cheerio.load(content);
 
-    var productCategory, 
-        productBrand, 
-        productSize, 
-        productColor, 
-        productPhotos, 
-        description, 
-        condition, 
-        price, 
+    var productCategory,
+        productBrand,
+        productSize,
+        productColor,
+        productPhotos,
+        description,
+        condition,
+        price,
         retails,
         savings,
         shipping;
 
-    var json = { 
-        productCategory : "", 
-        productBrand : "", 
-        productSize : "", 
-        productColor : "", 
-        productPhotos : "", 
-        description : "", 
-        condition : "", 
-        price : 0.00, 
+    var json = {
+        productCategory : "",
+        productBrand : "",
+        productSize : "",
+        productColor : "",
+        productPhotos : "",
+        description : "",
+        condition : "",
+        price : 0.00,
         retail : 0.00,
         savings : "",
         shipping : ""
@@ -210,8 +235,8 @@ var $ = cheerio.load(content);
 
         result.push(
             {
-                productPhotos: productPhotos, 
-                productBrand: productBrand, 
+                productPhotos: productPhotos,
+                productBrand: productBrand,
                 price: price,
                 productSize: productSize
             }
@@ -241,27 +266,27 @@ webpage.exit();
 }).then(content => {
     var $ = cheerio.load(content);
 
-    var productCategory, 
-        productBrand, 
-        productSize, 
-        productColor, 
-        productPhotos, 
-        description, 
-        condition, 
-        price, 
+    var productCategory,
+        productBrand,
+        productSize,
+        productColor,
+        productPhotos,
+        description,
+        condition,
+        price,
         retails,
         savings,
         shipping;
 
-    var json = { 
-        productCategory : "", 
-        productBrand : "", 
-        productSize : "", 
-        productColor : "", 
-        productPhotos : "", 
-        description : "", 
-        condition : "", 
-        price : 0.00, 
+    var json = {
+        productCategory : "",
+        productBrand : "",
+        productSize : "",
+        productColor : "",
+        productPhotos : "",
+        description : "",
+        condition : "",
+        price : 0.00,
         retail : 0.00,
         savings : "",
         shipping : ""
@@ -279,8 +304,8 @@ webpage.exit();
 
         result.push(
             {
-                productPhotos: productPhotos, 
-                productBrand: productBrand, 
+                productPhotos: productPhotos,
+                productBrand: productBrand,
                 price: price,
                 productSize: productSize
             }
@@ -312,27 +337,27 @@ phantom.create().then(ph => {
     //console.log(content);
     var $ = cheerio.load(content);
 
-    var productCategory, 
-        productBrand, 
-        productSize, 
-        productColor, 
-        productPhotos, 
-        description, 
-        condition, 
-        price, 
+    var productCategory,
+        productBrand,
+        productSize,
+        productColor,
+        productPhotos,
+        description,
+        condition,
+        price,
         retails,
         savings,
         shipping;
 
-    var json = { 
-        productCategory : "", 
-        productBrand : "", 
-        productSize : "", 
-        productColor : "", 
-        productPhotos : "", 
-        description : "", 
-        condition : "", 
-        price : 0.00, 
+    var json = {
+        productCategory : "",
+        productBrand : "",
+        productSize : "",
+        productColor : "",
+        productPhotos : "",
+        description : "",
+        condition : "",
+        price : 0.00,
         retail : 0.00,
         savings : "",
         shipping : ""
@@ -357,8 +382,8 @@ phantom.create().then(ph => {
 
         result.push(
             {
-                productPhotos: productPhotos, 
-                productBrand: productBrand, 
+                productPhotos: productPhotos,
+                productBrand: productBrand,
                 productCategory: productCategory,
                 description: description,
                 price: price,
@@ -380,9 +405,9 @@ phantom.create().then(ph => {
     _ph.exit();
 });
 */
-
+/*
 app.listen('8081')
 
 console.log('Magic happens on port 8081');
 
-exports = module.exports = app;
+exports = module.exports = app;*/
