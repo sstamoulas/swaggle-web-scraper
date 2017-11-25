@@ -7,8 +7,10 @@ var Horseman = require("node-horseman");
 var Promise = require("bluebird");
 var _ph, _page, _outObj;
 var results = [];
-var promises = [];
 var grandPromise;
+var totalCount = 0;
+var skipCount = 0;
+var erroredItems = [];
 
 var color,
     condition,
@@ -48,6 +50,7 @@ phantom.create().then(ph => {
     var $ = cheerio.load(content);
 
     $('.ng-scope .item').each(function(){
+		totalCount++;
 
         productPhotos = $(this).find('.image a img').attr('src');
         productBrand = $(this).find('.brand').text();
@@ -81,7 +84,9 @@ phantom.create().then(ph => {
                     condition: ""
                 }
             )
-        }
+        } else {
+			skipCount++;
+		}
 
     });
 
@@ -89,6 +94,7 @@ phantom.create().then(ph => {
 }).then(function(){
 	var maxCount = 5;
 	var index = 0;
+	console.log("Found " + totalCount + " item(s), of which " + results.length + " are men's. Skipping " + skipCount + " non-matching item(s).")
 	console.log("Begin extracting additional details for " + results.length + " item(s).")
 	grandPromise = new Promise(function(resolve, reject) { resolve(true) });
 
@@ -106,6 +112,23 @@ phantom.create().then(ph => {
     });
 }).then(function(){
     _page.close();
+
+	// Retry an errored items
+	if (erroredItems.length > 0) {
+		console.log("Occurred " + erroredItems.length + " error(s) during detail requests. Retrying...");
+		erroredItems.forEach(function(item) {
+			var delayedPromise = function() {
+				var delayInMS = 0; // delay in milliseconds
+				return Promise.delay(delayInMS).then(function() {
+					var requestIndex = erroredItems.indexOf(item) + 1;
+
+					console.log("RETRY: " + requestIndex + "/" + erroredItems.length + " item request URL", item.link, "Timestamp", new Date(), "Extra delay (ms)", delayInMS);
+					return extractDetailsFromItemPage(item);
+				});
+			}
+			grandPromise = grandPromise.then(delayedPromise);
+		});
+	}
 
 	grandPromise.then(function(){
 		var fileName = 'snobswap.json';
@@ -130,13 +153,17 @@ function extractDetailsFromItemPage(item){
            .then(function(content){
                 item.color = content.substring(getPosition(content, 'Color: ', 1) + 'Color: '.length, getPosition(content, '<br>', 2));
                 item.condition = content.substring(getPosition(content, 'Condition: ', 1) + 'Condition: '.length, getPosition(content, ' <span class="', 2));
-                resolve(item);
+				resolve(item);
            })
            .catch(function(e) {
-			   console.log("Got an error in horseman", e);
-			   reject(e);
-		   })
-           .close();
+			   var num = erroredItems.length + 1;
+			   console.log("SILENT FAIL for Horseman error #" + num, "Full error:");
+			   console.error(e);
+			   erroredItems.push(item);
+			   resolve(e);
+			   //reject(e);
+		   });
+           //.close();
     });
 }
 
