@@ -153,6 +153,7 @@ function extractDetailsFromItemPage(item){
            .then(function(content){
                 item.color = content.substring(getPosition(content, 'Color: ', 1) + 'Color: '.length, getPosition(content, '<br>', 2));
                 item.condition = content.substring(getPosition(content, 'Condition: ', 1) + 'Condition: '.length, getPosition(content, ' <span class="', 2));
+				horseman.close();
 				resolve(item);
            })
            .catch(function(e) {
@@ -160,6 +161,7 @@ function extractDetailsFromItemPage(item){
 			   console.log("SILENT FAIL for Horseman error #" + num, "Full error:");
 			   console.error(e);
 			   erroredItems.push(item);
+			   horseman.close();
 			   resolve(e);
 			   //reject(e);
 		   });
