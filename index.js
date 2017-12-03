@@ -38,7 +38,7 @@ phantom.create().then(ph => {
     _ph = ph;
     return _ph.createPage();
 }).then(page => {
-	var requestUrl = 'https://snobswap.com/shop/search?q=men#?p=0&pp=200&i=Items&wholesale_flag=0:0&sold_flag=0:0';
+	var requestUrl = 'https://snobswap.com/shop/search?q=men#?p=0&pp=2000&i=Items&wholesale_flag=0:0&sold_flag=0:0';
     _page = page;
 	console.log("Open up request to", requestUrl);
     return _page.open(requestUrl);
