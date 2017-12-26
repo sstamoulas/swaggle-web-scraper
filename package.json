@@ -19,7 +19,9 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "cheerio": "^1.0.0-rc.2",
+    "es6-promise": "^4.1.1",
     "express": "^4.16.2",
+    "isomorphic-fetch": "^2.2.1",
     "node-horseman": "^3.3.0",
     "phantom": "^4.0.8"
   }
